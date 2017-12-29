@@ -4,7 +4,7 @@ module.exports = {
     root: true,
     parser: 'babel-eslint',
     parserOptions: {
-        sourceType: 'module'
+        sourceType: 'module',
     },
     env: {
         browser: true,
@@ -12,15 +12,15 @@ module.exports = {
     extends: 'airbnb-base',
     // required to lint *.vue files
     plugins: [
-        'html'
+        'html',
     ],
     // check if imports actually resolve
     settings: {
         'import/resolver': {
             webpack: {
-                config: 'build/webpack.base.conf.js'
-            }
-        }
+                config: 'build/webpack.base.conf.js',
+            },
+        },
     },
     // add your custom rules here
     rules: {
@@ -38,5 +38,7 @@ module.exports = {
         'indent': ['error', 4, { 'SwitchCase': 1 }],
         'no-bitwise': 0,
         'no-mixed-operators': 0,
+        'max-len': ['error', 120],
+        'quote-props': 0,
     },
 };

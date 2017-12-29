@@ -5,9 +5,9 @@
         <button @click="findPowerDevices()">Power</button>
         <button @click="findHeartRateDevices()">Heart Rate</button>
         <button @click="findCadenceDevices()">Cadence</button>
-
-        <div>{{ speed }}</div>
-        km/h<br>
+        <br>
+        {{ speed }} km/h<br>
+        gear: {{ ratio }}<br>
 
         <Playground/>
     </div>
@@ -37,24 +37,30 @@
     let isAnimating = true;
     let oldt = performance.now();
     let speed = 0;
+    let ratio = '-';
+    const wheelRadius = 315; // in mm
 
     function animate() {
         if (!isAnimating) {
             return;
         }
 
-        requestAnimationFrame(animate);
+        requestAnimationFrame(animate.bind(this));
 
         const t = performance.now();
         const dt = t - oldt;
         oldt = t;
 
         const cadenceRotation = sensors.rpm * dt * 2 * Math.PI / (60 * 1000);
-        const speedRotation = speed * dt * 2 * Math.PI / 1000;
+        const c = wheelRadius * 2 * Math.PI / 1000;
+        const speedRotation = (speed / c) * 2 * Math.PI * dt / 1000; // TODO: optimise
         pedalsMesh.rotation.y -= cadenceRotation;
         wheel1Mesh.rotation.y -= speedRotation;
         wheel2Mesh.rotation.y -= speedRotation;
         renderer.render(scene, camera);
+
+        ratio = _.round(cadenceRotation / speedRotation, 2);
+        this.ratio = `1:${ratio}`;
     }
 
     /* eslint-disable no-restricted-properties, no-param-reassign */
@@ -63,8 +69,9 @@
         return x < 0 ? -y : y;
     }
 
+    // TODO: get rid of epsilon. Maybe optimise using lookup? Needs test cases
     function solveCubic(a, b, c, d) {
-        const epsilon = 1e-8;
+        const epsilon = 1e-6;
         if (Math.abs(a) < epsilon) {
             // Quadratic case, ax^2+bx+c=0
             a = b;
@@ -128,6 +135,7 @@
 
         return roots;
     }
+
     /* eslint-enable */
 
     /**
@@ -148,18 +156,18 @@
         const headwindAtRoad = (0.1 ** 0.143) * headwind;
 
         let roots = solveCubic(
-            airPenetration * headwindAtRoad ** 2 + W * G * (slope / 100.0 + f),
-            2 * airPenetration * headwindAtRoad,
             airPenetration,
+            2 * airPenetration * headwindAtRoad,
+            airPenetration * headwindAtRoad ** 2 + W * G * (slope / 100.0 + f),
             -power,
         );
         let calculatedSpeed = _.min(roots);
         if (calculatedSpeed + headwind < 0) {
             roots = solveCubic(
-                -airPenetration * headwindAtRoad ** 2 + W * G * (slope / 100.0 + f),
-                -2 * airPenetration * headwindAtRoad,
                 -airPenetration,
-                -power,
+                -2 * airPenetration * headwind,
+                -airPenetration * headwind ** 2 + W * G * (slope / 100.0 + f),
+                power,
             );
             if (roots.length > 0) {
                 calculatedSpeed = _.min(roots);
@@ -171,7 +179,7 @@
 
     function updateSpeed() {
         speed = getSpeedInMetersPerSecond({
-            power: 400,
+            power: 300,
             Cx: 0.25,
             f: 0.01,
             W: 80,
@@ -180,7 +188,7 @@
             elevation: 0,
         });
 
-        this.speed = speed * 10.256; // km/h
+        this.speed = Math.round(speed * 3.6); // km/h
     }
 
     export default {
@@ -194,6 +202,7 @@
         data() {
             return {
                 speed,
+                ratio,
             };
         },
 
@@ -220,13 +229,13 @@
             pedalsMesh.position.y = -80;
             scene.add(pedalsMesh);
 
-            const wheel1Geometry = new THREE.CylinderBufferGeometry(315, 315, 2.8, 50, 1);
+            const wheel1Geometry = new THREE.CylinderBufferGeometry(wheelRadius, wheelRadius, 2.8, 50, 1);
             wheel1Mesh = new THREE.Mesh(wheel1Geometry, material);
             wheel1Mesh.position.x = -500;
             wheel1Mesh.rotation.x = Math.PI / 2;
             scene.add(wheel1Mesh);
 
-            const wheel2Geometry = new THREE.CylinderBufferGeometry(315, 315, 2.8, 50, 1);
+            const wheel2Geometry = new THREE.CylinderBufferGeometry(wheelRadius, wheelRadius, 2.8, 50, 1);
             wheel2Mesh = new THREE.Mesh(wheel2Geometry, material);
             wheel2Mesh.position.x = 500;
             wheel2Mesh.rotation.x = Math.PI / 2;
@@ -240,7 +249,7 @@
         mounted() {
             this.$el.appendChild(renderer.domElement);
             isAnimating = true;
-            animate();
+            animate.bind(this)();
 
             sensorsEmitter.on('update', updateSpeed.bind(this));
         },
