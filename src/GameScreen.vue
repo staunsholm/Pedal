@@ -1,15 +1,22 @@
 <template>
     <div id="app">
-        <SensorsUI/>
+        <div id="world"></div>
 
-        <button @click="findPowerDevices()">Power</button>
-        <button @click="findHeartRateDevices()">Heart Rate</button>
-        <button @click="findCadenceDevices()">Cadence</button>
-        <br>
-        {{ speed }} km/h<br>
-        gear: {{ ratio }}<br>
+        <div class="sensorsui">
+            <SensorsUI/>
+            {{ speed }} km/h<br>
+            gear: {{ ratio }}<br>
+        </div>
 
-        <Playground/>
+        <div class="devices">
+            <button @click="findPowerDevices()">Power</button>
+            <button @click="findHeartRateDevices()">Heart Rate</button>
+            <button @click="findCadenceDevices()">Cadence</button>
+        </div>
+
+        <div class="playground">
+            <Playground/>
+        </div>
     </div>
 </template>
 
@@ -34,6 +41,7 @@
     let pedalsMesh;
     let wheel1Mesh;
     let wheel2Mesh;
+    let bike;
     let isAnimating = true;
     let oldt = performance.now();
     let speed = 0;
@@ -57,6 +65,10 @@
         pedalsMesh.rotation.y -= cadenceRotation;
         wheel1Mesh.rotation.y -= speedRotation;
         wheel2Mesh.rotation.y -= speedRotation;
+        bike.position.x += speed * dt;
+        if (bike.position.x > 4500) {
+            bike.position.x = -4500;
+        }
         renderer.render(scene, camera);
 
         ratio = _.round(cadenceRotation / speedRotation, 2);
@@ -155,31 +167,21 @@
         const G = 9.81;
         const headwindAtRoad = (0.1 ** 0.143) * headwind;
 
-        let roots = solveCubic(
+        const roots = solveCubic(
             airPenetration,
             2 * airPenetration * headwindAtRoad,
             airPenetration * headwindAtRoad ** 2 + W * G * (slope / 100.0 + f),
             -power,
         );
-        let calculatedSpeed = _.min(roots);
-        if (calculatedSpeed + headwind < 0) {
-            roots = solveCubic(
-                -airPenetration,
-                -2 * airPenetration * headwind,
-                -airPenetration * headwind ** 2 + W * G * (slope / 100.0 + f),
-                power,
-            );
-            if (roots.length > 0) {
-                calculatedSpeed = _.min(roots);
-            }
-        }
+        const calculatedSpeed = roots[0];
 
-        return calculatedSpeed || 0;
+        // we don't want to ride backwards
+        return calculatedSpeed > 0 ? calculatedSpeed : 0;
     }
 
     function updateSpeed() {
         speed = getSpeedInMetersPerSecond({
-            power: 300,
+            power: 40,
             Cx: 0.25,
             f: 0.01,
             W: 80,
@@ -213,8 +215,8 @@
         },
 
         created() {
-            const width = 200;
-            const height = 200;
+            const width = window.innerWidth;
+            const height = window.innerHeight;
 
             camera = new THREE.PerspectiveCamera(70, width / height, 1, 10000);
             camera.position.z = 1500;
@@ -223,23 +225,27 @@
             const texture = new THREE.TextureLoader().load('src/textures/crate.gif');
             const material = new THREE.MeshBasicMaterial({ map: texture });
 
+            bike = new THREE.Object3D();
+
             const pedalsGeometry = new THREE.CylinderBufferGeometry(65, 65, 1.5, 50, 1);
             pedalsMesh = new THREE.Mesh(pedalsGeometry, material);
             pedalsMesh.rotation.x = Math.PI / 2;
             pedalsMesh.position.y = -80;
-            scene.add(pedalsMesh);
+            bike.add(pedalsMesh);
 
             const wheel1Geometry = new THREE.CylinderBufferGeometry(wheelRadius, wheelRadius, 2.8, 50, 1);
             wheel1Mesh = new THREE.Mesh(wheel1Geometry, material);
             wheel1Mesh.position.x = -500;
             wheel1Mesh.rotation.x = Math.PI / 2;
-            scene.add(wheel1Mesh);
+            bike.add(wheel1Mesh);
 
             const wheel2Geometry = new THREE.CylinderBufferGeometry(wheelRadius, wheelRadius, 2.8, 50, 1);
             wheel2Mesh = new THREE.Mesh(wheel2Geometry, material);
             wheel2Mesh.position.x = 500;
             wheel2Mesh.rotation.x = Math.PI / 2;
-            scene.add(wheel2Mesh);
+            bike.add(wheel2Mesh);
+
+            scene.add(bike);
 
             renderer = new THREE.WebGLRenderer();
             renderer.setPixelRatio(window.devicePixelRatio);
@@ -264,12 +270,44 @@
 </script>
 
 <style>
+    body {
+        margin: 0;
+    }
+
     #app {
         font-family: 'Avenir', Helvetica, Arial, sans-serif;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+        color: #eee;
+    }
+
+    #world {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+
+    .sensorsui {
+        position: absolute;
+        top: 30px;
+        left: 20px;
+        width: 200px;
+    }
+
+    .playground {
+        position: absolute;
+        top: 30px;
+        right: 20px;
+        width: 200px;
+        height: 200px;
+    }
+
+    .devices {
+        position: absolute;
+        bottom: 30px;
+        width: 100%;
         text-align: center;
-        color: #2c3e50;
-        margin-top: 60px;
     }
 </style>
