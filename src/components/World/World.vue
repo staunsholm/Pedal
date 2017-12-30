@@ -1,7 +1,7 @@
 <template>
     <div>
-        <Landscape :scene="scene" ref="Landscape"/>
-        <Players :scene="scene" ref="Players"/>
+        <Landscape :scene="scene" ref="animate"/>
+        <Players :scene="scene" ref="animate"/>
     </div>
 </template>
 
@@ -10,6 +10,7 @@
     import * as THREE from 'three';
     import Landscape from '../Landscape/Landscape';
     import Players from '../Players/Players';
+    import getCamera from './Camera';
 
     let camera;
     let renderer;
@@ -29,6 +30,7 @@
         const dt = t - oldt;
         oldt = t;
 
+        // call animate() method on each of the components that have a ref
         const refs = _.filter(this.$refs, ref => ref.animate);
         _.forEach(refs, (ref) => {
             ref.animate(dt);
@@ -40,10 +42,13 @@
     const width = window.innerWidth;
     const height = window.innerHeight;
 
-    camera = new THREE.PerspectiveCamera(70, width / height, 1, 10000);
-    camera.position.z = 1500;
+    camera = getCamera(width, height);
 
     scene = new THREE.Scene();
+
+    renderer = new THREE.WebGLRenderer();
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(width, height);
 
     export default {
         name: 'World',
@@ -57,12 +62,6 @@
             return {
                 scene,
             };
-        },
-
-        created() {
-            renderer = new THREE.WebGLRenderer();
-            renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.setSize(width, height);
         },
 
         mounted() {
