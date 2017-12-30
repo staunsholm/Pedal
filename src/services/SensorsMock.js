@@ -1,9 +1,7 @@
 import * as EventEmitter from 'eventemitter3';
 import * as log from 'loglevel';
+import { getSpeedInMetersPerSecond, getAcceleration } from './PlayerCalculations';
 
-let bpm = 0;
-let watts = 0;
-let rpm = 0;
 // let cumulativeCrankRevolutions;
 let crankEventTime;
 
@@ -13,9 +11,11 @@ class SensorsEmitter extends EventEmitter {
 export const sensorsEmitter = new SensorsEmitter();
 
 export const sensors = {
-    bpm,
-    watts,
-    rpm,
+    bpm: 0,
+    watts: 0,
+    rpm: 0,
+    speed: 0,
+    ratio: '-',
     bpmBuffer: [],
     rpmBuffer: [],
     wattsBuffer: [],
@@ -85,7 +85,30 @@ function findDevice({ serviceName, characteristicName, handleChange }) {
                 },
             });
         }, 1000);
-    }, 500);
+    }, 100);
+}
+
+function updateSpeed() {
+    sensors.targetSpeed = getSpeedInMetersPerSecond({
+        power: sensors.watts,
+        Cx: 0.25,
+        f: 0.1,
+        W: 80,
+        slope: 0,
+        headwind: 0,
+        elevation: 0,
+    });
+
+    sensors.acceleration = getAcceleration({
+        power: sensors.watts,
+        totalMass: 80,
+        speed: sensors.targetSpeed,
+        wheelRadius: 315,
+        wheelWeight: 1,
+    });
+
+    sensors.ratio = '-';
+    sensors.speed = 0;
 }
 
 function handleHeartRateChange(e) {
@@ -93,10 +116,12 @@ function handleHeartRateChange(e) {
     const controlByte = value.getUint8(0);
     const is8bitValue = (controlByte & 0x80) === 0;
 
-    bpm = is8bitValue ? value.getUint8(1) : value.getUint16(2);
+    const bpm = is8bitValue ? value.getUint8(1) : value.getUint16(2);
 
     sensors.bpm = bpm;
     sensors.bpmBuffer.push({ time: Date.now(), bpm });
+
+    updateSpeed();
 
     sensorsEmitter.emit('update', sensors);
 }
@@ -111,10 +136,12 @@ export function findHeartRateDevices() {
 
 function handlePowerChange(e) {
     const value = e.target.value;
-    watts = value.getInt16(2);
+    const watts = value.getInt16(2);
 
     sensors.watts = watts;
     sensors.wattsBuffer.push({ time: Date.now(), watts });
+
+    updateSpeed();
 
     sensorsEmitter.emit('update', sensors);
 }
@@ -137,13 +164,15 @@ function handleCadenceChange(e) {
         const newCrankEventTime = value.getUint16(10);
         // rpm = (newCumulativeCrankRevolutions - cumulativeCrankRevolutions) /
         //       (newCrankEventTime - crankEventTime) * 1024 * 60;
-        rpm = Math.round(crankEventTime * 60 / 1024);
+        const rpm = Math.round(crankEventTime * 60 / 1024);
         // cumulativeCrankRevolutions = newCumulativeCrankRevolutions;
         crankEventTime = newCrankEventTime;
 
         if (!isNaN(rpm)) {
             sensors.rpm = rpm;
             sensors.rpmBuffer.push({ time: Date.now(), rpm });
+
+            updateSpeed();
 
             sensorsEmitter.emit('update', sensors);
         }

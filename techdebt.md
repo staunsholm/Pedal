@@ -11,11 +11,11 @@ really needs to take into account the current speed (ie no power when
 going down hill).
 
 ##### 30-12-2018
-Need to split up rendering, calculations and data storage. Vuex is
-probably the way to go for data.
+Needs central data store.Vuex is probably the way to go, but could
+also just be a global object (for better performance)?
 
 ##### 30-12-2018
-No unit tests. Especially imortant for speed calculations.
+Needs unit tests. Especially important for speed calculations.
 
 ##### 30-12-2018
 Speed calculations can most likely be heavily optimised, however this
