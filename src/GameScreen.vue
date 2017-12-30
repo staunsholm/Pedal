@@ -45,6 +45,8 @@
     let isAnimating = true;
     let oldt = performance.now();
     let speed = 0;
+    let targetSpeed = 0;
+    let acceleration = 0;
     let ratio = '-';
     const wheelRadius = 315; // in mm
 
@@ -58,6 +60,13 @@
         const t = performance.now();
         const dt = t - oldt;
         oldt = t;
+
+        speed += acceleration * dt;
+        if (speed > targetSpeed) {
+            speed = targetSpeed;
+        }
+
+        this.speed = Math.round(speed * 3.6); // km/h
 
         const cadenceRotation = sensors.rpm * dt * 2 * Math.PI / (60 * 1000);
         const c = wheelRadius * 2 * Math.PI / 1000;
@@ -179,9 +188,24 @@
         return calculatedSpeed > 0 ? calculatedSpeed : 0;
     }
 
+    function getAcceleration({ power, totalMass, wheelWeight }) {
+        const c = wheelRadius * 2 * Math.PI / 1000;
+        const angularVelocity = (speed / c) * 2 * Math.PI;
+
+        if (angularVelocity === 0) {
+            return 0.001;
+        }
+
+        const torque = power / angularVelocity;
+        const wheelInertia = wheelWeight * wheelRadius ** 2;
+        return torque / (wheelRadius * totalMass + 2 * wheelInertia / wheelRadius);
+    }
+
     function updateSpeed() {
-        speed = getSpeedInMetersPerSecond({
-            power: 40,
+        const power = 300;
+
+        targetSpeed = getSpeedInMetersPerSecond({
+            power,
             Cx: 0.25,
             f: 0.01,
             W: 80,
@@ -190,7 +214,13 @@
             elevation: 0,
         });
 
-        this.speed = Math.round(speed * 3.6); // km/h
+        acceleration = getAcceleration({
+            power,
+            totalMass: 80,
+            wheelWeight: 1,
+        });
+
+        console.log(acceleration);
     }
 
     export default {
