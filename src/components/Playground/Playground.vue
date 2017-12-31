@@ -6,8 +6,6 @@
 </template>
 
 <script>
-    import * as calculate from './calculate';
-
     export default {
         name: 'Playground',
         data() {
@@ -19,10 +17,8 @@
         },
         created() {
             this.x = 100;
-            calculate.start(this);
         },
         destroyed() {
-            calculate.stop();
         },
     };
 </script>

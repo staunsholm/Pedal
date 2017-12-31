@@ -1,4 +1,4 @@
-/* eslint-disable no-restricted-properties, no-param-reassign */
+/* eslint-disable no-restricted-properties */
 function cuberoot(x) {
     const y = Math.pow(Math.abs(x), 1 / 3);
     return x < 0 ? -y : y;
@@ -70,7 +70,6 @@ function solveCubic(a, b, c, d) {
 
     return roots;
 }
-
 /* eslint-enable */
 
 /**
@@ -102,6 +101,15 @@ export function getSpeedInMetersPerSecond({ power, Cx, f, W, slope, headwind, el
     return calculatedSpeed > 0 ? calculatedSpeed : 0;
 }
 
+/**
+ *
+ * @param power in watts
+ * @param totalMass of rider+bike
+ * @param wheelWeight per wheel
+ * @param wheelRadius in mm
+ * @param speed in m/s
+ * @returns {number} measured in m/s^2
+ */
 export function getAcceleration({ power, totalMass, wheelWeight, wheelRadius, speed }) {
     const c = wheelRadius * 2 * Math.PI / 1000;
     const angularVelocity = (speed / c) * 2 * Math.PI;

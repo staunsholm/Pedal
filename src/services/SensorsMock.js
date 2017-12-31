@@ -1,14 +1,9 @@
-import * as EventEmitter from 'eventemitter3';
+import store from '@/store';
 import * as log from 'loglevel';
 import { getSpeedInMetersPerSecond, getAcceleration } from './PlayerCalculations';
 
 // let cumulativeCrankRevolutions;
 let crankEventTime;
-
-class SensorsEmitter extends EventEmitter {
-}
-
-export const sensorsEmitter = new SensorsEmitter();
 
 export const sensors = {
     bpm: 0,
@@ -109,6 +104,8 @@ function updateSpeed() {
 
     sensors.ratio = '-';
     sensors.speed = 0;
+
+    store.dispatch('updateSensors', sensors);
 }
 
 function handleHeartRateChange(e) {
@@ -122,8 +119,6 @@ function handleHeartRateChange(e) {
     sensors.bpmBuffer.push({ time: Date.now(), bpm });
 
     updateSpeed();
-
-    sensorsEmitter.emit('update', sensors);
 }
 
 export function findHeartRateDevices() {
@@ -142,8 +137,6 @@ function handlePowerChange(e) {
     sensors.wattsBuffer.push({ time: Date.now(), watts });
 
     updateSpeed();
-
-    sensorsEmitter.emit('update', sensors);
 }
 
 export function findPowerDevices() {
@@ -173,8 +166,6 @@ function handleCadenceChange(e) {
             sensors.rpmBuffer.push({ time: Date.now(), rpm });
 
             updateSpeed();
-
-            sensorsEmitter.emit('update', sensors);
         }
     }
 }

@@ -1,6 +1,6 @@
 <script>
+    import { mapGetters } from 'vuex';
     import * as THREE from 'three';
-    import { sensorsEmitter } from 'sensors';
 
     let pedalsMesh;
     let wheel1Mesh;
@@ -8,17 +8,8 @@
     let bike;
 
     let speed = 0;
-    let targetSpeed = 0;
-    let acceleration = 0;
-    let rpm = 0;
 
     const wheelRadius = 315; // in mm
-
-    function updateSpeed(sensors) {
-        targetSpeed = sensors.targetSpeed;
-        rpm = sensors.rpm;
-        acceleration = sensors.acceleration;
-    }
 
     export default {
         name: 'World',
@@ -27,22 +18,22 @@
             'scene',
         ],
 
-        data() {
-            return {
-                targetSpeed,
-                rpm,
-                acceleration,
-            };
+        computed: {
+            ...mapGetters({
+                targetSpeed: 'targetSpeed',
+                rpm: 'rpm',
+                acceleration: 'acceleration',
+            }),
         },
 
         methods: {
             animate(dt) {
-                speed += acceleration * dt;
-                if (speed > targetSpeed) {
-                    speed = targetSpeed;
+                speed += this.acceleration * dt;
+                if (speed > this.targetSpeed) {
+                    speed = this.targetSpeed;
                 }
 
-                const cadenceRotation = rpm * dt * 2 * Math.PI / (60 * 1000);
+                const cadenceRotation = this.rpm * dt * 2 * Math.PI / (60 * 1000);
                 const c = wheelRadius * 2 * Math.PI / 1000;
                 const speedRotation = (speed / c) * 2 * Math.PI * dt / 1000; // TODO: optimise
                 pedalsMesh.rotation.y -= cadenceRotation;
@@ -80,14 +71,6 @@
             bike.add(wheel2Mesh);
 
             this.scene.add(bike);
-        },
-
-        mounted() {
-            sensorsEmitter.on('update', updateSpeed.bind(this));
-        },
-
-        destroyed() {
-            sensorsEmitter.removeListener('update', updateSpeed);
         },
 
         render() {

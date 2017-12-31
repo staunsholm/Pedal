@@ -40,5 +40,7 @@ module.exports = {
         'no-mixed-operators': 0,
         'max-len': ['error', 120],
         'quote-props': 0,
+        'no-shadow': 0,
+        'no-param-reassign': 0,
     },
 };
