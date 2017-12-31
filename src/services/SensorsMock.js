@@ -18,9 +18,10 @@ export const sensors = {
 
 function getMockHeartRateValue() {
     const value = Math.round(Math.random() * 5 + 123);
+
     const buffer = new ArrayBuffer(4);
     const encodedValue = new DataView(buffer);
-    const controlByte = 0x80; // 16-bit value
+    const controlByte = 0b10000000; // 16-bit value
     encodedValue.setUint8(0, controlByte);
     encodedValue.setUint8(1, 0);
     encodedValue.setUint16(2, value);
@@ -30,6 +31,7 @@ function getMockHeartRateValue() {
 
 function getMockPowerValue() {
     const value = Math.round(Math.random() * 30 + 180);
+
     const buffer = new ArrayBuffer(4);
     const encodedValue = new DataView(buffer);
     encodedValue.setInt16(2, value);
@@ -41,9 +43,10 @@ let mockCumulativeCrankRevolutions = 0;
 
 function getMockCadenceValue() {
     const value = Math.round(Math.random() * 10 + 90);
+
     const buffer = new ArrayBuffer(12);
     const encodedValue = new DataView(buffer);
-    const controlByte = 0x80; // hasCrankRevolutionData
+    const controlByte = 0b10000000; // hasCrankRevolutionData
     mockCumulativeCrankRevolutions += Math.round(value / 60);
     const mockCrankEventTime = value / 60 * 1024;
     encodedValue.setUint8(0, controlByte);
@@ -111,7 +114,7 @@ function updateSpeed() {
 function handleHeartRateChange(e) {
     const value = e.target.value;
     const controlByte = value.getUint8(0);
-    const is8bitValue = (controlByte & 0x80) === 0;
+    const is8bitValue = (controlByte & 0b100000) === 0;
 
     const bpm = is8bitValue ? value.getUint8(1) : value.getUint16(2);
 
@@ -150,7 +153,7 @@ export function findPowerDevices() {
 function handleCadenceChange(e) {
     const value = e.target.value;
     const controlByte = value.getUint8(0);
-    const hasCrankRevolutionData = (controlByte & 0x80) === 0x80;
+    const hasCrankRevolutionData = (controlByte & 0b10000000) === 0b10000000;
 
     if (hasCrankRevolutionData) {
         // const newCumulativeCrankRevolutions = value.getUint16(8);

@@ -1,16 +1,16 @@
-import * as EventEmitter from 'eventemitter3';
+import store from '@/store';
 import * as log from 'loglevel';
+import { getSpeedInMetersPerSecond, getAcceleration } from './PlayerCalculations';
 
-let bpm = 0;
-let watts = 0;
-let rpm = 0;
-let cumulativeCrankRevolutions;
+// let cumulativeCrankRevolutions;
 let crankEventTime;
 
 export const sensors = {
-    bpm,
-    watts,
-    rpm,
+    bpm: 0,
+    watts: 0,
+    rpm: 0,
+    speed: 0,
+    ratio: '-',
     bpmBuffer: [],
     rpmBuffer: [],
     wattsBuffer: [],
@@ -42,61 +42,90 @@ function findDevice({ serviceName, characteristicName, handleChange }) {
         });
 }
 
+function updateSpeed() {
+    sensors.targetSpeed = getSpeedInMetersPerSecond({
+        power: sensors.watts,
+        Cx: 0.25,
+        f: 0.1,
+        W: 80,
+        slope: 0,
+        headwind: 0,
+        elevation: 0,
+    });
+
+    sensors.acceleration = getAcceleration({
+        power: sensors.watts,
+        totalMass: 80,
+        speed: sensors.targetSpeed,
+        wheelRadius: 315,
+        wheelWeight: 1,
+    });
+
+    sensors.ratio = '-';
+    sensors.speed = 0;
+
+    store.dispatch('updateSensors', sensors);
+}
+
 function handleHeartRateChange(e) {
     const value = e.target.value;
     const controlByte = value.getUint8(0);
-    const is8bitValue = (controlByte & 0x80) === 0;
+    const is8bitValue = (controlByte & 0b100000) === 0;
 
-    bpm = is8bitValue ? value.getUint8(1) : value.getUint16(2);
+    const bpm = is8bitValue ? value.getUint8(1) : value.getUint16(2);
 
     sensors.bpm = bpm;
     sensors.bpmBuffer.push({ time: Date.now(), bpm });
+
+    updateSpeed();
 }
 
 export function findHeartRateDevices() {
     findDevice({
         serviceName: 'heart_rate',
         characteristicName: 'heart_rate_measurement',
-        handleHeartRateChange,
+        handleChange: handleHeartRateChange,
     });
 }
 
 function handlePowerChange(e) {
     const value = e.target.value;
-    watts = value.getInt16(2);
+    const watts = value.getInt16(2);
 
     sensors.watts = watts;
     sensors.wattsBuffer.push({ time: Date.now(), watts });
+
+    updateSpeed();
 }
 
 export function findPowerDevices() {
     findDevice({
         serviceName: 'cycling_power',
         characteristicName: 'cycling_power_measurement',
-        handlePowerChange,
+        handleChange: handlePowerChange,
     });
 }
-
-class SensorsEmitter extends EventEmitter {}
-export const sensorsEmitter = new SensorsEmitter();
 
 function handleCadenceChange(e) {
     const value = e.target.value;
     const controlByte = value.getUint8(0);
-    const hasCrankRevolutionData = (controlByte & 0x80) === 1;
+    const hasCrankRevolutionData = (controlByte & 0b10000000) === 0b10000000;
 
     if (hasCrankRevolutionData) {
-        const newCumulativeCrankRevolutions = value.getUint16(8);
+        // const newCumulativeCrankRevolutions = value.getUint16(8);
         const newCrankEventTime = value.getUint16(10);
-        rpm = (newCumulativeCrankRevolutions - cumulativeCrankRevolutions) /
-            (newCrankEventTime - crankEventTime) * 1024 * 60;
-        cumulativeCrankRevolutions = newCumulativeCrankRevolutions;
+        // rpm = (newCumulativeCrankRevolutions - cumulativeCrankRevolutions) /
+        //       (newCrankEventTime - crankEventTime) * 1024 * 60;
+        const rpm = Math.round(crankEventTime * 60 / 1024);
+        // cumulativeCrankRevolutions = newCumulativeCrankRevolutions;
         crankEventTime = newCrankEventTime;
 
-        sensors.rpm = rpm;
-        sensors.rpmBuffer.push({ time: Date.now(), rpm });
+        if (!isNaN(rpm)) {
+            sensors.rpm = rpm;
+            sensors.rpmBuffer.push({ time: Date.now(), rpm });
 
-        sensorsEmitter.emit('update', sensors);
+            updateSpeed();
+        }
     }
 }
 
@@ -104,6 +133,6 @@ export function findCadenceDevices() {
     findDevice({
         serviceName: 'cycling_speed_and_cadence',
         characteristicName: 'csc_measurement',
-        handleCadenceChange,
+        handleChange: handleCadenceChange,
     });
 }
