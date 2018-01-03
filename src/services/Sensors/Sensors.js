@@ -1,6 +1,6 @@
 import store from '@/store';
 import * as log from 'loglevel';
-import { getSpeedInMetersPerSecond, getAcceleration } from './PlayerCalculations';
+import { getSpeedInMetersPerSecond, getAcceleration } from '../PlayerCalculations';
 
 // let cumulativeCrankRevolutions;
 let crankEventTime;
@@ -16,74 +16,30 @@ export const sensors = {
     wattsBuffer: [],
 };
 
-function getMockHeartRateValue() {
-    const value = Math.round(Math.random() * 5 + 123);
-
-    const buffer = new ArrayBuffer(4);
-    const encodedValue = new DataView(buffer);
-    const controlByte = 0b10000000; // 16-bit value
-    encodedValue.setUint8(0, controlByte);
-    encodedValue.setUint8(1, 0);
-    encodedValue.setUint16(2, value);
-
-    return encodedValue;
-}
-
-function getMockPowerValue() {
-    const value = Math.round(Math.random() * 30 + 180);
-
-    const buffer = new ArrayBuffer(4);
-    const encodedValue = new DataView(buffer);
-    encodedValue.setInt16(2, value);
-
-    return encodedValue;
-}
-
-let mockCumulativeCrankRevolutions = 0;
-
-function getMockCadenceValue() {
-    const value = Math.round(Math.random() * 10 + 90);
-
-    const buffer = new ArrayBuffer(12);
-    const encodedValue = new DataView(buffer);
-    const controlByte = 0b10000000; // hasCrankRevolutionData
-    mockCumulativeCrankRevolutions += Math.round(value / 60);
-    const mockCrankEventTime = value / 60 * 1024;
-    encodedValue.setUint8(0, controlByte);
-    encodedValue.setUint16(8, mockCumulativeCrankRevolutions);
-    encodedValue.setUint16(10, mockCrankEventTime);
-
-    return encodedValue;
-}
-
 function findDevice({ serviceName, characteristicName, handleChange }) {
-    log.debug('mock findDevice', serviceName, characteristicName);
-
-    // wait a bit then start broadcasting mock data every second
-    setTimeout(() => {
-        setInterval(() => {
-            let value;
-
-            switch (serviceName) {
-                case 'heart_rate':
-                    value = getMockHeartRateValue();
-                    break;
-                case 'cycling_power':
-                    value = getMockPowerValue();
-                    break;
-                case 'cycling_speed_and_cadence':
-                    value = getMockCadenceValue();
-                    break;
-                default:
-            }
-
-            handleChange({
-                target: {
-                    value,
-                },
-            });
-        }, 1000);
-    }, 100);
+    log.debug('findDevice', serviceName);
+    navigator.bluetooth.requestDevice({ filters: [{ services: [serviceName] }] })
+        .then((device) => {
+            log.debug('device', device);
+            return device.gatt.connect();
+        })
+        .then((server) => {
+            // Getting Service...
+            log.debug('server', server);
+            return server.getPrimaryService(serviceName);
+        })
+        .then((service) => {
+            // Getting Characteristic...
+            log.debug('service', service);
+            return service.getCharacteristic(characteristicName);
+        })
+        .then((characteristic) => {
+            log.debug('characteristic', characteristic);
+            characteristic.addEventListener('characteristicvaluechanged', handleChange);
+        })
+        .catch((error) => {
+            log.error(error);
+        });
 }
 
 function updateSpeed() {

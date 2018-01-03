@@ -1,3 +1,5 @@
+import { UPDATE_SENSORS } from './types';
+
 const state = {
     rpm: 0,
     targetSpeed: 0,
@@ -17,7 +19,7 @@ const getters = {
 };
 
 const mutations = {
-    updateSensors(state, sensors) {
+    [UPDATE_SENSORS](state, sensors) {
         state.targetSpeed = sensors.targetSpeed;
         state.rpm = sensors.rpm;
         state.acceleration = sensors.acceleration;
@@ -28,8 +30,8 @@ const mutations = {
 };
 
 const actions = {
-    updateSensors({ commit, state }, sensors) {
-        commit('updateSensors', sensors);
+    [UPDATE_SENSORS]({ commit, state }, sensors) {
+        commit(UPDATE_SENSORS, sensors);
     },
 };
 
